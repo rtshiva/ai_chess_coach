@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chess Coach AI</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@4/assets/styles/cm-chessboard.css">
+    <style>
+        .container { display: flex; gap: 20px; padding: 20px; font-family: sans-serif; }
+        #board { width: 500px; height: 500px; }
+        #coach-pane { width: 350px; padding: 20px; border: 1px solid #ddd; background: #fafafa; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; }
+        #debug-pane { font-family: monospace; font-size: 12px; background: #eee; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #007bff; border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 8px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="board"></div>
+    <div id="coach-pane">
+        <h3>Chess Coach AI</h3>
+        <div id="loading" style="display: none;"><div class="spinner"></div> <span>Analyzing your position...</span></div>
+        <p id="output">Make a move to begin analysis...</p>
+        <div id="debug-pane">
+            <strong>Debug Info:</strong><br/>
+            <span id="debug-status">Ready</span>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { Chess } from "https://cdn.jsdelivr.net/npm/chess.js@1.0.0-beta.6/+esm";
+    import { Chessboard, INPUT_EVENT_TYPE } from "https://cdn.jsdelivr.net/npm/cm-chessboard@4/src/cm-chessboard/Chessboard.js";
+
+    const game = new Chess();
+    const board = new Chessboard(document.getElementById("board"), {
+        position: game.fen(),
+        sprite: { url: "https://cdn.jsdelivr.net/npm/cm-chessboard@4/assets/images/chessboard-sprite.svg" }
+    });
+
+    function inputHandler(event) {
+        if (event.type === INPUT_EVENT_TYPE.moveStart) {
+            // event.piece might not be available directly, but let's assume it is or check game.get
+            const piece = game.get(event.square || event.squareFrom);
+            if (piece) return game.turn() === piece.color;
+            return true;
+        }
+
+        if (event.type === INPUT_EVENT_TYPE.moveDone) {
+            const fenBeforeMove = game.fen(); 
+            try {
+                const moveResult = game.move({
+                    from: event.squareFrom,
+                    to: event.squareTo,
+                    promotion: "q" 
+                });
+                
+                if (!moveResult) return false;
+
+                board.setPosition(game.fen());
+                analyzeMoveOnBackend(fenBeforeMove, moveResult.lan, game.fen());
+                return true; 
+            } catch (err) {
+                return false; 
+            }
+        }
+    }
+
+    board.enableMoveInput(inputHandler);
+
+    function analyzeMoveOnBackend(preFen, moveUci, postFen) {
+        document.getElementById("output").style.display = "none";
+        document.getElementById("loading").style.display = "block";
+        document.getElementById("debug-status").innerText = `Sending POST to http://localhost:5267/api/analyze\nMove: ${moveUci}`;
+
+        fetch('http://localhost:5267/api/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fenBefore: preFen, movePlayedUci: moveUci, fenAfter: postFen })
+        })
+        .then(async res => {
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(`HTTP ${res.status}: ${text}`);
+            }
+            return res.json();
+        })
+        .then(data => {
+            document.getElementById("loading").style.display = "none";
+            document.getElementById("output").style.display = "block";
+            document.getElementById("output").innerHTML = `<strong>Coach:</strong> ${data.explanation}`;
+            document.getElementById("debug-status").innerText = "Success!";
+        })
+        .catch((err) => {
+            document.getElementById("loading").style.display = "none";
+            document.getElementById("output").style.display = "block";
+            document.getElementById("output").innerText = "Error connecting to coaching backend.";
+            document.getElementById("debug-status").innerText = err.toString();
+        });
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+# .gitignore for ChessCoach (.NET 9 + Frontend)
+
+# Build outputs
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userprefs
+
+# NuGet
+*.nupkg
+.nuget/
+
+# Rider
+.idea/
+
+# Test results
+TestResults/
+
+# OS
+.DS_Store
+Thumbs.db
