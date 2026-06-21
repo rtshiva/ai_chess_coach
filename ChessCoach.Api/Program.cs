@@ -1,10 +1,15 @@
 using ChessCoach.Api.Configuration;
+using ChessCoach.Api.Data;
 using ChessCoach.Api.Services;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
+
+builder.Services.AddDbContext<ChessCoachDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddOpenApi();
 
 builder.Services.Configure<LlmSettings>(builder.Configuration.GetSection("LlmSettings"));

@@ -28,10 +28,12 @@ public class DualStageEvaluator
         
         var matchedLine = stageAResult.ParallelLines.FirstOrDefault(l => l.UciMove == userMoveUci);
         GameEvaluation normalizedUserMove;
+        string userLinePv = string.Empty;
 
         if (matchedLine != null)
         {
             normalizedUserMove = contextBefore.NormalizeToWhiteCentric(matchedLine.RawType, matchedLine.RawValue);
+            userLinePv = matchedLine.PvSequence;
         }
         else
         {
@@ -42,13 +44,15 @@ public class DualStageEvaluator
             // Derive context explicitly from the next state's FEN layout from frontend
             var contextAfter = BoardStateContext.FromFen(fenAfter);
             normalizedUserMove = contextAfter.NormalizeToWhiteCentric(stageBResult.RawType, stageBResult.RawValue);
+            userLinePv = stageBResult.PvSequence;
         }
 
-        return DetermineClassificationDeltas(normalizedRoot, normalizedUserMove, contextBefore.SideToMove, bestLine.UciMove);
-    }
-
-    private MoveEvaluationFacts DetermineClassificationDeltas(GameEvaluation root, GameEvaluation user, string turn, string bestUci)
-    {
-        return new MoveEvaluationFacts(root, user, bestUci);
+        return new MoveEvaluationFacts(
+            normalizedRoot, 
+            normalizedUserMove, 
+            bestLine.UciMove,
+            bestLine.PvSequence,
+            userLinePv
+        );
     }
 }

@@ -10,6 +10,7 @@ public class UciLine
     public string UciMove { get; set; } = string.Empty;
     public string RawType { get; set; } = string.Empty;
     public int RawValue { get; set; }
+    public string PvSequence { get; set; } = string.Empty;
 }
 
 public class UciAnalysisResult
@@ -30,7 +31,8 @@ public static class UciParser
             {
                 var multiPvMatch = Regex.Match(line, @"multipv\s+(\d+)");
                 var scoreMatch = Regex.Match(line, @"score\s+(cp|mate)\s+(-?\d+)");
-                var pvMatch = Regex.Match(line, @"pv\s+([a-h][1-8][a-h][1-8][qrbn]?)");
+                // Capture the entire rest of the line as the PV sequence, and the first word as the UciMove
+                var pvMatch = Regex.Match(line, @"pv\s+(([a-h][1-8][a-h][1-8][qrbn]?)(.*))");
 
                 if (multiPvMatch.Success && scoreMatch.Success && pvMatch.Success)
                 {
@@ -39,7 +41,8 @@ public static class UciParser
                         MoveIndex = int.Parse(multiPvMatch.Groups[1].Value),
                         RawType = scoreMatch.Groups[1].Value,
                         RawValue = int.Parse(scoreMatch.Groups[2].Value),
-                        UciMove = pvMatch.Groups[1].Value
+                        PvSequence = pvMatch.Groups[1].Value.Trim(),
+                        UciMove = pvMatch.Groups[2].Value.Trim()
                     });
                 }
             }

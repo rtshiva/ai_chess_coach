@@ -1,7 +1,10 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
+using ChessCoach.Api.Data;
 using ChessCoach.Api.Domain;
 using ChessCoach.Api.Services;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 using Xunit;
 
@@ -10,13 +13,20 @@ namespace ChessCoach.Api.Tests.Services;
 public class ActiveCoachingPipelineTests
 {
     [Fact]
-    public async Task ProcessTurnAsync_AcceptableMove_ShortCircuitsLlm()
+    public async Task ProcessTurnAsync_AcceptableMove_ForwardsToLlm()
     {
         var mockPool = new Mock<IEnginePoolManager>();
         var evaluator = new DualStageEvaluator(mockPool.Object);
         var mockLlm = new Mock<ILlmClient>();
+        mockLlm.Setup(l => l.GenerateFencedTextAsync(It.IsAny<string>()))
+            .ReturnsAsync("LLM Analysis: Good move!");
 
-        var pipeline = new ActiveCoachingPipeline(evaluator, mockLlm.Object);
+        var options = new DbContextOptionsBuilder<ChessCoachDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+        var dbContext = new ChessCoachDbContext(options);
+
+        var pipeline = new ActiveCoachingPipeline(evaluator, mockLlm.Object, dbContext);
 
         // Mock Stage A output: user plays e2e4 (best move) so centipawn loss is 0
         var rootFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -28,10 +38,10 @@ bestmove e2e4";
             .ReturnsAsync(stageAOutput);
 
         var fenAfter = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1";
-        var response = await pipeline.ProcessTurnAsync(rootFen, "e2e4", fenAfter, CancellationToken.None);
+        var response = await pipeline.ProcessTurnAsync(rootFen, "e2e4", fenAfter, string.Empty, CancellationToken.None);
 
-        Assert.Contains("Good move", response.ExplanationText);
-        mockLlm.Verify(l => l.GenerateFencedTextAsync(It.IsAny<string>()), Times.Never);
+        Assert.Contains("LLM Analysis", response.ExplanationText);
+        mockLlm.Verify(l => l.GenerateFencedTextAsync(It.IsAny<string>()), Times.Once);
     }
 
     [Fact]
@@ -41,7 +51,12 @@ bestmove e2e4";
         var evaluator = new DualStageEvaluator(mockPool.Object);
         var mockLlm = new Mock<ILlmClient>();
 
-        var pipeline = new ActiveCoachingPipeline(evaluator, mockLlm.Object);
+        var options = new DbContextOptionsBuilder<ChessCoachDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+        var dbContext = new ChessCoachDbContext(options);
+
+        var pipeline = new ActiveCoachingPipeline(evaluator, mockLlm.Object, dbContext);
 
         // Mock Stage A output without h2h4
         var rootFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -65,7 +80,7 @@ Fen: rnbqkbnr/pppppppp/8/8/7P/8/PPPPPPP1/RNBQKBNR b KQkq h3 0 1";
             .ReturnsAsync("LLM Analysis: You lost center control.");
 
         var fenAfter = "rnbqkbnr/pppppppp/8/8/7P/8/PPPPPPP1/RNBQKBNR b KQkq h3 0 1";
-        var response = await pipeline.ProcessTurnAsync(rootFen, "h2h4", fenAfter, CancellationToken.None);
+        var response = await pipeline.ProcessTurnAsync(rootFen, "h2h4", fenAfter, string.Empty, CancellationToken.None);
 
         Assert.Equal("LLM Analysis: You lost center control.", response.ExplanationText);
         mockLlm.Verify(l => l.GenerateFencedTextAsync(It.IsAny<string>()), Times.Once);

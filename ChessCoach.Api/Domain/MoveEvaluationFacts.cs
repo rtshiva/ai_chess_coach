@@ -7,14 +7,18 @@ public class MoveEvaluationFacts
     public GameEvaluation RootEvaluation { get; }
     public GameEvaluation UserEvaluation { get; }
     public string BestUciMove { get; }
+    public string BestLinePvSequence { get; }
+    public string UserLinePvSequence { get; }
     public int CentipawnLoss { get; }
     public bool IsAcceptableChoice { get; }
     
-    public MoveEvaluationFacts(GameEvaluation root, GameEvaluation user, string bestUciMove)
+    public MoveEvaluationFacts(GameEvaluation root, GameEvaluation user, string bestUciMove, string bestLinePvSequence, string userLinePvSequence)
     {
         RootEvaluation = root;
         UserEvaluation = user;
         BestUciMove = bestUciMove;
+        BestLinePvSequence = bestLinePvSequence;
+        UserLinePvSequence = userLinePvSequence;
         
         // In a true implementation, dealing with Forced Mate subtraction requires complex logic.
         // For Phase 1 stateless oracle, we simplify CentipawnLoss if both are CP scores.
