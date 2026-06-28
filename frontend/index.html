@@ -6,14 +6,15 @@
     <title>AI Chess Coach AI</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@4/assets/styles/cm-chessboard.css">
     <style>
-        .container { display: flex; gap: 20px; padding: 20px; font-family: sans-serif; }
+        .layout-wrapper { display: flex; flex-direction: column; gap: 20px; padding: 20px; font-family: sans-serif; max-width: 870px; }
+        .top-row { display: flex; gap: 20px; }
         #board { width: 500px; height: 500px; }
-        #coach-pane { width: 350px; padding: 20px; border: 1px solid #ddd; background: #fafafa; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; }
-        #pgn-pane { width: 250px; padding: 20px; border: 1px solid #ddd; background: #fff; border-radius: 8px; overflow-y: auto; max-height: 500px; }
-        #debug-pane { font-family: monospace; font-size: 12px; background: #eee; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        #coach-pane { width: 100%; padding: 20px; border: 1px solid #ddd; background: #fafafa; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; }
+        #pgn-pane { width: 350px; padding: 20px; border: 1px solid #ddd; background: #fff; border-radius: 8px; overflow-y: auto; max-height: 500px; box-sizing: border-box; }
         .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #007bff; border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 8px; }
         textarea { width: 100%; height: 100px; margin-top: 5px; }
-        .pgn-moves { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+        #output code { background-color: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-family: monospace; box-shadow: 0 1px 2px rgba(0,0,0,0.1); font-size: 14px; }
+        .pgn-moves { display: flex; flex-wrap: wrap; gap: 8px 12px; font-size: 14px; }
         .pgn-pair { display: flex; gap: 8px; }
         .pgn-move-num { font-weight: bold; width: 24px; color: #555; }
         .pgn-move { cursor: pointer; padding: 2px 4px; border-radius: 4px; }
@@ -24,29 +25,22 @@
 </head>
 <body>
 
-<div class="container">
-    <div id="board"></div>
-    <div id="pgn-pane">
-        <h3>Game History</h3>
-        <div id="pgn-moves" class="pgn-moves"></div>
+<div class="layout-wrapper">
+    <div class="top-row">
+        <div id="board"></div>
+        <div id="pgn-pane">
+            <h3>Game History</h3>
+            <div id="pgn-moves" class="pgn-moves"></div>
+        </div>
     </div>
     <div id="coach-pane">
         <h3>Chess Coach AI</h3>
-        
-        <div class="settings-group" style="display: none;">
-            <label for="prompt-template">Custom Coach Prompt</label>
-            <textarea id="prompt-template">You are an expert chess coach. The game history in PGN format is: {moveHistory}. The user just played {userMoveUci}. This move resulted in a {centipawnLoss} centipawn loss compared to the engine's top choice {bestUciMove}. The engine expected the continuation for the top choice to be: {bestLinePv}, and the continuation for the user's move leads to: {userLinePv}. IMPORTANT: Do not calculate chess moves yourself. Rely exclusively on the provided future continuation paths. If the centipawn loss is 0, congratulate them on finding the best move. If the loss is greater than 0, instruct the student on why their move was not optimal, explaining what they lost or what the ideal move would have gained. Be encouraging and concise.</textarea>
-        </div>
-
         <div id="loading" style="display: none;"><div class="spinner"></div> <span>Analyzing your position...</span></div>
         <p id="output">Make a move to begin analysis...</p>
-        <div id="debug-pane">
-            <strong>Debug Info:</strong><br/>
-            <span id="debug-status">Ready</span>
-        </div>
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script type="module">
     import { Chess } from "https://cdn.jsdelivr.net/npm/chess.js@1.0.0-beta.6/+esm";
     import { Chessboard, INPUT_EVENT_TYPE } from "https://cdn.jsdelivr.net/npm/cm-chessboard@4/src/cm-chessboard/Chessboard.js";
@@ -165,9 +159,9 @@
     async function analyzeMoveOnBackend(fenBefore, moveUci, fenAfter) {
         document.getElementById("output").style.display = "none";
         document.getElementById("loading").style.display = "block";
-        document.getElementById("debug-status").innerText = `Sending POST to http://localhost:5267/api/analyze\nMove: ${moveUci}`;
+        console.log(`Sending POST to http://localhost:5267/api/analyze\nMove: ${moveUci}`);
 
-        const promptTemplate = document.getElementById('prompt-template').value;
+        const promptTemplate = "You are an expert chess coach. The game history in PGN format is: {moveHistory}. The user just played {userMoveUci}. This move resulted in a {centipawnLoss} centipawn loss compared to the engine's top choice {bestUciMove}. The engine expected the continuation for the top choice to be: {bestLinePv}, and the continuation for the user's move leads to: {userLinePv}. IMPORTANT: Do not calculate chess moves yourself. Rely exclusively on the provided future continuation paths. If the centipawn loss is 0, congratulate them on finding the best move. If the loss is greater than 0, instruct the student on why their move was not optimal, explaining what they lost or what the ideal move would have gained. Be encouraging and concise. Format your response using Markdown. ALWAYS wrap specific chess moves in backticks (e.g. `e4`, `Nf3`) so they can be styled.";
 
         const moveHistory = game.pgn();
 
@@ -185,7 +179,8 @@
 
             document.getElementById("loading").style.display = "none";
             document.getElementById("output").style.display = "block";
-            document.getElementById("output").innerHTML = `<strong>Coach:</strong> `;
+            let fullResponse = "";
+            document.getElementById("output").innerHTML = "";
             
             const reader = response.body.getReader();
             const decoder = new TextDecoder("utf-8");
@@ -201,21 +196,22 @@
                     if (line.startsWith('data: ')) {
                         let dataStr = line.substring(6).replace(/\\n/g, '\n');
                         if (dataStr.startsWith('[ERROR]')) {
-                            document.getElementById("debug-status").innerText = dataStr;
+                            console.error(dataStr);
                         } else {
-                            document.getElementById("output").innerHTML += dataStr;
+                            fullResponse += dataStr;
+                            document.getElementById("output").innerHTML = marked.parse(fullResponse);
                         }
                     }
                 }
             }
             
-            document.getElementById("debug-status").innerText = "Streaming Complete!";
+            console.log("Streaming Complete!");
 
         } catch (err) {
             document.getElementById("loading").style.display = "none";
             document.getElementById("output").style.display = "block";
             document.getElementById("output").innerText = "Error connecting to coaching backend.";
-            document.getElementById("debug-status").innerText = err.toString();
+            console.error(err);
         }
     }
 </script>
