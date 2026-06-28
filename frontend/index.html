@@ -44,7 +44,7 @@
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script type="module">
     import { Chess } from "https://cdn.jsdelivr.net/npm/chess.js@1.0.0-beta.6/+esm";
-    import { Chessboard, INPUT_EVENT_TYPE } from "https://cdn.jsdelivr.net/npm/cm-chessboard@4/src/cm-chessboard/Chessboard.js";
+    import { Chessboard, INPUT_EVENT_TYPE, MARKER_TYPE } from "https://cdn.jsdelivr.net/npm/cm-chessboard@4/src/cm-chessboard/Chessboard.js";
 
     const game = new Chess();
     const board = new Chessboard(document.getElementById("board"), {
@@ -133,6 +133,7 @@
 
                 currentPly = game.history().length;
                 board.setPosition(game.fen());
+                board.removeMarkers();
                 renderPgn();
 
                 // Debounce analysis by 3 seconds
@@ -198,6 +199,18 @@
                         let dataStr = line.substring(6).replace(/\\n/g, '\n');
                         if (dataStr.startsWith('[ERROR]')) {
                             console.error(dataStr);
+                        } else if (dataStr.startsWith('[METADATA]')) {
+                            try {
+                                const meta = JSON.parse(dataStr.substring(10).trim());
+                                if (meta.bestUciMove && meta.bestUciMove.length >= 4 && meta.bestUciMove !== '0000') {
+                                    const fromSq = meta.bestUciMove.substring(0, 2);
+                                    const toSq = meta.bestUciMove.substring(2, 4);
+                                    board.addMarker(MARKER_TYPE.frame, fromSq);
+                                    board.addMarker(MARKER_TYPE.frame, toSq);
+                                }
+                            } catch(e) {
+                                console.error("Error parsing metadata: ", e);
+                            }
                         } else {
                             fullResponse += dataStr;
                             document.getElementById("output").innerHTML = marked.parse(fullResponse);

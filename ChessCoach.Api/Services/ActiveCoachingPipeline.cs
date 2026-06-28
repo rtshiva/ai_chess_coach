@@ -95,6 +95,10 @@ public class ActiveCoachingPipeline
         _dbContext.MoveAnalysisEvents.Add(analysisEvent);
         await _dbContext.SaveChangesAsync(ct);
 
+        // 3. Yield metadata
+        yield return $"[METADATA] {{ \"bestUciMove\": \"{evaluationFacts.BestUciMove}\" }}";
+
+
         // 3. Structural Motif Construction
         string contextualPrompt;
         if (!string.IsNullOrWhiteSpace(promptTemplate))
