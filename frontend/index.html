@@ -133,7 +133,7 @@
 
                 currentPly = game.history().length;
                 board.setPosition(game.fen());
-                board.removeMarkers();
+                try { board.removeMarkers(); } catch(e) { console.warn(e); }
                 renderPgn();
 
                 // Debounce analysis by 3 seconds
@@ -205,8 +205,8 @@
                                 if (meta.bestUciMove && meta.bestUciMove.length >= 4 && meta.bestUciMove !== '0000') {
                                     const fromSq = meta.bestUciMove.substring(0, 2);
                                     const toSq = meta.bestUciMove.substring(2, 4);
-                                    board.addMarker(MARKER_TYPE.frame, fromSq);
-                                    board.addMarker(MARKER_TYPE.frame, toSq);
+                                    board.addMarker(fromSq, MARKER_TYPE.frame);
+                                    board.addMarker(toSq, MARKER_TYPE.frame);
                                 }
                             } catch(e) {
                                 console.error("Error parsing metadata: ", e);
