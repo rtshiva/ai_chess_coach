@@ -28,3 +28,7 @@ stockfish/
 stockfish-windows-x86-64-avx2.zip
 temp_script*.txt
 test_regex*
+
+*.db
+*.db-shm
+*.db-wal

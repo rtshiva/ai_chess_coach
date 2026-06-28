@@ -50,23 +50,25 @@ This project follows a strict development trajectory to ensure stability and acc
 
 
 
-*   **Phase 1 (Current):** Establish the core "Stateless Oracle"—engine integration, dual-stage evaluation logic, and real-time coaching via fenced LLM prompts.
+*   **Phase 1 (Completed):** Establish the core "Stateless Oracle"—engine integration, dual-stage evaluation logic, and Server-Sent Events (SSE) streaming for real-time coaching via local LLM prompts.
 
-*   **Phase 2:** Implementation of an immutable Event Store (PostgreSQL) to log historical blunder patterns and motif-based analysis.
+*   **Phase 2 (Completed):** Implementation of an immutable Event Store (SQLite/Entity Framework Core) to securely log historical evaluations, move accuracy, and generated coach feedback.
 
-*   **Phase 3:** Integration of Spaced Repetition (FSRS/SM-2) for curated drill delivery based on historical user weaknesses.
+*   **Phase 3 (Next Steps):** Integration of Spaced Repetition (FSRS/SM-2) for curated drill delivery based on historical user weaknesses.
 
 
 
 ## Tech Stack
 
-*   **Backend:** .NET 8 / 9 Web API
+*   **Backend:** .NET 9 Web API
 
 *   **Frontend:** Vanilla JS (ES Modules), `chess.js`
 
-*   **Engine:** Stockfish (MultiPV=3)
+*   **Engine:** Stockfish 17 (MultiPV=3)
 
-*   **Data/State:** PostgreSQL (Event Sourcing), Redis (Analysis Caching)
+*   **LLM Integration:** Ollama (Local Models, e.g., Qwen3.5, Gemma4) via Streaming API
+
+*   **Data/State:** SQLite (Entity Framework Core)
 
 
 
@@ -88,13 +90,16 @@ This project architecture was developed with the assistance of **Gemini**, a lar
 
 ### Getting Started
 
+1.  **Install dependencies:** 
+    *   Ensure you have the .NET 9 SDK installed.
+    *   Download the latest Stockfish binary.
+    *   Install [Ollama](https://ollama.com/) and run `ollama run qwen3.5:9b` (or your preferred local model).
 
+2.  **Configuration:** Open `ChessCoach.Api/appsettings.json` and update the `"StockfishPath"` value to point to your downloaded Stockfish executable.
 
-1.  **Install dependencies:** Ensure you have the .NET SDK and a copy of the Stockfish binary.
+3.  **Run Backend:** Navigate to the `ChessCoach.Api` directory and run `dotnet run`. This will automatically boot the server and create the SQLite database.
 
-2.  **Configuration:** Update the `EnginePoolManager` settings to point to your specific Stockfish executable.
-
-3.  **Run:** Launch the API, serve the `index.html` file, and begin analysis.
+4.  **Run Frontend:** Open `frontend/index.html` in any modern web browser to start playing against the Coach!
 
 
 
