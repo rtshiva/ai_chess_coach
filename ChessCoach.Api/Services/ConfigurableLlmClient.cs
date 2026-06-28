@@ -108,8 +108,8 @@ public class ConfigurableLlmClient : ILlmClient
             DateTime.Now.ToString("HH:mm:ss.fff"), _settings.BaseUrl, _settings.ModelName, jsonPayload);
         
         Console.WriteLine("\n--- LLM RESPONSE STREAM START ---");
-        HttpResponseMessage response = null;
-        string errorMessage = null;
+        HttpResponseMessage? response = null;
+        string? errorMessage = null;
         try
         {
             response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
@@ -129,7 +129,7 @@ public class ConfigurableLlmClient : ILlmClient
 
         _logger.LogInformation("[{Time}] LLM Client: Received initial HTTP response headers after {Ms} ms.", DateTime.Now.ToString("HH:mm:ss.fff"), sw.ElapsedMilliseconds);
 
-        using var stream = await response.Content.ReadAsStreamAsync(ct);
+        using var stream = await response!.Content.ReadAsStreamAsync(ct);
         using var reader = new StreamReader(stream);
 
         bool firstChunk = true;
