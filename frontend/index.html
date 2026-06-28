@@ -9,9 +9,16 @@
         .container { display: flex; gap: 20px; padding: 20px; font-family: sans-serif; }
         #board { width: 500px; height: 500px; }
         #coach-pane { width: 350px; padding: 20px; border: 1px solid #ddd; background: #fafafa; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; }
+        #pgn-pane { width: 250px; padding: 20px; border: 1px solid #ddd; background: #fff; border-radius: 8px; overflow-y: auto; max-height: 500px; }
         #debug-pane { font-family: monospace; font-size: 12px; background: #eee; padding: 10px; border-radius: 4px; overflow-x: auto; }
         .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #007bff; border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 8px; }
         textarea { width: 100%; height: 100px; margin-top: 5px; }
+        .pgn-moves { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+        .pgn-pair { display: flex; gap: 8px; }
+        .pgn-move-num { font-weight: bold; width: 24px; color: #555; }
+        .pgn-move { cursor: pointer; padding: 2px 4px; border-radius: 4px; }
+        .pgn-move:hover { background: #e0e0e0; }
+        .pgn-move.active { background: #007bff; color: white; font-weight: bold; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
@@ -19,12 +26,16 @@
 
 <div class="container">
     <div id="board"></div>
+    <div id="pgn-pane">
+        <h3>Game History</h3>
+        <div id="pgn-moves" class="pgn-moves"></div>
+    </div>
     <div id="coach-pane">
         <h3>Chess Coach AI</h3>
         
-        <div class="settings-group">
+        <div class="settings-group" style="display: none;">
             <label for="prompt-template">Custom Coach Prompt</label>
-            <textarea id="prompt-template">You are an expert chess coach. The user played {userMoveUci} from FEN {fenBefore}. This was a mistake resulting in a {centipawnLoss} centipawn loss compared to the best move {bestUciMove}. The engine expected the continuation for the best move to be {bestLinePv}, but your move leads to {userLinePv}. Provide a brief, encouraging 1-sentence explanation of why they lost material or position.</textarea>
+            <textarea id="prompt-template">You are an expert chess coach. The game history in PGN format is: {moveHistory}. The user just played {userMoveUci}. This move resulted in a {centipawnLoss} centipawn loss compared to the engine's top choice {bestUciMove}. The engine expected the continuation for the top choice to be: {bestLinePv}, and the continuation for the user's move leads to: {userLinePv}. IMPORTANT: Do not calculate chess moves yourself. Rely exclusively on the provided future continuation paths. If the centipawn loss is 0, congratulate them on finding the best move. If the loss is greater than 0, instruct the student on why their move was not optimal, explaining what they lost or what the ideal move would have gained. Be encouraging and concise.</textarea>
         </div>
 
         <div id="loading" style="display: none;"><div class="spinner"></div> <span>Analyzing your position...</span></div>
@@ -46,15 +57,71 @@
         sprite: { url: "https://cdn.jsdelivr.net/npm/cm-chessboard@4/assets/images/chessboard-sprite.svg" }
     });
 
+    let currentPly = 0;
+    let initialFen = game.fen();
+    let analysisTimeout = null;
+
+    function renderPgn() {
+        const history = game.history({ verbose: true });
+        const pgnPane = document.getElementById("pgn-moves");
+        pgnPane.innerHTML = "";
+        
+        const startSpan = document.createElement("span");
+        startSpan.className = "pgn-move" + (currentPly === 0 ? " active" : "");
+        startSpan.innerText = "Start";
+        startSpan.onclick = () => goToPly(0);
+        pgnPane.appendChild(startSpan);
+        
+        let movePair = null;
+        for (let i = 0; i < history.length; i++) {
+            if (i % 2 === 0) {
+                movePair = document.createElement("div");
+                movePair.className = "pgn-pair";
+                const moveNum = document.createElement("span");
+                moveNum.className = "pgn-move-num";
+                moveNum.innerText = (Math.floor(i / 2) + 1) + ".";
+                movePair.appendChild(moveNum);
+                pgnPane.appendChild(movePair);
+            }
+            
+            const moveSpan = document.createElement("span");
+            moveSpan.className = "pgn-move" + (currentPly === i + 1 ? " active" : "");
+            moveSpan.innerText = history[i].san;
+            moveSpan.onclick = () => goToPly(i + 1);
+            movePair.appendChild(moveSpan);
+        }
+    }
+
+    function goToPly(plyIndex) {
+        currentPly = plyIndex;
+        if (plyIndex === 0) {
+            board.setPosition(initialFen);
+        } else {
+            const history = game.history({ verbose: true });
+            board.setPosition(history[plyIndex - 1].after);
+        }
+        renderPgn();
+    }
+
+    // Expose for global window if needed, but not necessary here.
+    window.goToPly = goToPly;
+
     function inputHandler(event) {
         if (event.type === INPUT_EVENT_TYPE.moveStart) {
-            // event.piece might not be available directly, but let's assume it is or check game.get
-            const piece = game.get(event.square || event.squareFrom);
-            if (piece) return game.turn() === piece.color;
+            // If we are looking at history, only allow moves if it's the correct turn for that history ply
+            // Actually, we should temporarily set the chess.js state to the current ply to check legality
             return true;
         }
 
         if (event.type === INPUT_EVENT_TYPE.moveDone) {
+            // If we are in history, truncate the future
+            if (currentPly < game.history().length) {
+                const historyToKeep = currentPly;
+                while (game.history().length > historyToKeep) {
+                    game.undo();
+                }
+            }
+
             const fenBeforeMove = game.fen(); 
             try {
                 const moveResult = game.move({
@@ -63,18 +130,37 @@
                     promotion: "q" 
                 });
                 
-                if (!moveResult) return false;
+                if (!moveResult) {
+                    // Invalid move, restore visual to current internal game state
+                    board.setPosition(game.fen());
+                    return false;
+                }
 
+                currentPly = game.history().length;
                 board.setPosition(game.fen());
-                analyzeMoveOnBackend(fenBeforeMove, moveResult.lan, game.fen());
+                renderPgn();
+
+                // Debounce analysis by 3 seconds
+                clearTimeout(analysisTimeout);
+                
+                document.getElementById("output").style.display = "block";
+                document.getElementById("output").innerHTML = "<em>Waiting 3 seconds for you to settle...</em>";
+                document.getElementById("loading").style.display = "none";
+
+                analysisTimeout = setTimeout(() => {
+                    analyzeMoveOnBackend(fenBeforeMove, moveResult.lan, game.fen());
+                }, 3000);
+
                 return true; 
             } catch (err) {
+                board.setPosition(game.fen());
                 return false; 
             }
         }
     }
 
     board.enableMoveInput(inputHandler);
+    renderPgn();
 
     async function analyzeMoveOnBackend(fenBefore, moveUci, fenAfter) {
         document.getElementById("output").style.display = "none";
@@ -83,30 +169,54 @@
 
         const promptTemplate = document.getElementById('prompt-template').value;
 
-        fetch('http://localhost:5267/api/analyze', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fenBefore: fenBefore, movePlayedUci: moveUci, fenAfter: fenAfter, promptTemplate: promptTemplate })
-        })
-        .then(async res => {
-            if (!res.ok) {
-                const text = await res.text();
-                throw new Error(`HTTP ${res.status}: ${text}`);
+        const moveHistory = game.pgn();
+
+        try {
+            const response = await fetch('http://localhost:5267/api/analyze/stream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fenBefore: fenBefore, movePlayedUci: moveUci, fenAfter: fenAfter, moveHistory: moveHistory, promptTemplate: promptTemplate })
+            });
+
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(`HTTP ${response.status}: ${text}`);
             }
-            return res.json();
-        })
-        .then(data => {
+
             document.getElementById("loading").style.display = "none";
             document.getElementById("output").style.display = "block";
-            document.getElementById("output").innerHTML = `<strong>Coach:</strong> ${data.explanation}`;
-            document.getElementById("debug-status").innerText = "Success!";
-        })
-        .catch((err) => {
+            document.getElementById("output").innerHTML = `<strong>Coach:</strong> `;
+            
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder("utf-8");
+            
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                
+                const chunk = decoder.decode(value, { stream: true });
+                const lines = chunk.split('\n');
+                
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        let dataStr = line.substring(6).replace(/\\n/g, '\n');
+                        if (dataStr.startsWith('[ERROR]')) {
+                            document.getElementById("debug-status").innerText = dataStr;
+                        } else {
+                            document.getElementById("output").innerHTML += dataStr;
+                        }
+                    }
+                }
+            }
+            
+            document.getElementById("debug-status").innerText = "Streaming Complete!";
+
+        } catch (err) {
             document.getElementById("loading").style.display = "none";
             document.getElementById("output").style.display = "block";
             document.getElementById("output").innerText = "Error connecting to coaching backend.";
             document.getElementById("debug-status").innerText = err.toString();
-        });
+        }
     }
 </script>
 </body>

@@ -1,0 +1,1 @@
+dotnet run --project ChessCoach.Api/ChessCoach.Api.csproj

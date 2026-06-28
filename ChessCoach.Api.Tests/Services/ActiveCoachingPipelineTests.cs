@@ -38,7 +38,7 @@ bestmove e2e4";
             .ReturnsAsync(stageAOutput);
 
         var fenAfter = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1";
-        var response = await pipeline.ProcessTurnAsync(rootFen, "e2e4", fenAfter, string.Empty, CancellationToken.None);
+        var response = await pipeline.ProcessTurnAsync(rootFen, "e2e4", fenAfter, string.Empty, string.Empty, CancellationToken.None);
 
         Assert.Contains("LLM Analysis", response.ExplanationText);
         mockLlm.Verify(l => l.GenerateFencedTextAsync(It.IsAny<string>()), Times.Once);
@@ -80,7 +80,7 @@ Fen: rnbqkbnr/pppppppp/8/8/7P/8/PPPPPPP1/RNBQKBNR b KQkq h3 0 1";
             .ReturnsAsync("LLM Analysis: You lost center control.");
 
         var fenAfter = "rnbqkbnr/pppppppp/8/8/7P/8/PPPPPPP1/RNBQKBNR b KQkq h3 0 1";
-        var response = await pipeline.ProcessTurnAsync(rootFen, "h2h4", fenAfter, string.Empty, CancellationToken.None);
+        var response = await pipeline.ProcessTurnAsync(rootFen, "h2h4", fenAfter, string.Empty, string.Empty, CancellationToken.None);
 
         Assert.Equal("LLM Analysis: You lost center control.", response.ExplanationText);
         mockLlm.Verify(l => l.GenerateFencedTextAsync(It.IsAny<string>()), Times.Once);
