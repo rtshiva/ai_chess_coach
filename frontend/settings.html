@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coach Settings</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f0f0f0; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
+        input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        input[type="checkbox"] { margin-right: 10px; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #0056b3; }
+        #message { margin-top: 20px; padding: 10px; border-radius: 4px; display: none; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <a href="index.html" style="text-decoration: none; color: #007bff;">&larr; Back to Game</a>
+    <h2>Coach Configuration</h2>
+    
+    <div class="form-group">
+        <label for="stockfishPath">Stockfish Executable Path</label>
+        <input type="text" id="stockfishPath" placeholder="C:\\path\\to\\stockfish.exe">
+    </div>
+    
+    <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+    
+    <div class="form-group">
+        <label for="llmEndpointUrl">LLM Endpoint URL</label>
+        <input type="text" id="llmEndpointUrl" placeholder="http://localhost:11434/api/chat">
+    </div>
+    
+    <div class="form-group">
+        <label for="llmModelName">LLM Model Name</label>
+        <input type="text" id="llmModelName" placeholder="qwen3.5:9b">
+    </div>
+    
+    <div class="form-group">
+        <label>
+            <input type="checkbox" id="enableThinking">
+            Enable LLM Thinking Mode
+        </label>
+    </div>
+
+    <button onclick="saveSettings()">Save Settings</button>
+
+    <div id="message"></div>
+</div>
+
+<script>
+    async function loadSettings() {
+        try {
+            const res = await fetch('http://localhost:5267/api/settings');
+            if (res.ok) {
+                const config = await res.json();
+                document.getElementById('stockfishPath').value = config.StockfishPath || '';
+                if (config.LlmSettings) {
+                    document.getElementById('llmEndpointUrl').value = config.LlmSettings.BaseUrl || '';
+                    document.getElementById('llmModelName').value = config.LlmSettings.ModelName || '';
+                    document.getElementById('enableThinking').checked = config.LlmSettings.EnableThinking || false;
+                }
+            }
+        } catch (e) {
+            showMessage('Error loading settings from backend: ' + e.message, false);
+        }
+    }
+
+    async function saveSettings() {
+        const payload = {
+            StockfishPath: document.getElementById('stockfishPath').value,
+            LlmSettings: {
+                BaseUrl: document.getElementById('llmEndpointUrl').value,
+                ModelName: document.getElementById('llmModelName').value,
+                EnableThinking: document.getElementById('enableThinking').checked
+            }
+        };
+
+        try {
+            const res = await fetch('http://localhost:5267/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                showMessage('Settings saved successfully! You MUST restart the backend server (dotnet run) to apply changes to Stockfish.', true);
+            } else {
+                const txt = await res.text();
+                showMessage('Error saving settings: ' + txt, false);
+            }
+        } catch (e) {
+            showMessage('Network error: ' + e.message, false);
+        }
+    }
+
+    function showMessage(text, isSuccess) {
+        const msg = document.getElementById('message');
+        msg.textContent = text;
+        msg.className = isSuccess ? 'success' : 'error';
+        msg.style.display = 'block';
+    }
+
+    // Load on init
+    loadSettings();
+</script>
+
+</body>
+</html>

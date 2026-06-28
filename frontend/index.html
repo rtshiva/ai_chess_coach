@@ -8,7 +8,7 @@
     <style>
         .layout-wrapper { display: flex; flex-direction: column; gap: 20px; padding: 20px; font-family: sans-serif; max-width: 870px; }
         .top-row { display: flex; gap: 20px; }
-        #board { width: 500px; height: 500px; }
+        #board { width: 100%; max-width: 500px; aspect-ratio: 1/1; }
         #coach-pane { width: 100%; padding: 20px; border: 1px solid #ddd; background: #fafafa; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; }
         #pgn-pane { width: 350px; padding: 20px; border: 1px solid #ddd; background: #fff; border-radius: 8px; overflow-y: auto; max-height: 500px; box-sizing: border-box; }
         .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #007bff; border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 8px; }
@@ -25,6 +25,7 @@
 </head>
 <body>
 
+<div style="padding: 10px 20px;"><a href="settings.html">⚙️ Settings</a></div>
 <div class="layout-wrapper">
     <div class="top-row">
         <div id="board"></div>
