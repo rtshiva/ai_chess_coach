@@ -6,9 +6,9 @@
     <title>AI Chess Coach AI</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@4/assets/styles/cm-chessboard.css">
     <style>
-        .layout-wrapper { display: flex; flex-direction: column; gap: 20px; padding: 20px; font-family: sans-serif; max-width: 870px; }
+        .layout-wrapper { display: flex; flex-direction: column; gap: 20px; padding: 20px; font-family: sans-serif; max-width: 1400px; margin: 0 auto; }
         .top-row { display: flex; gap: 20px; }
-        #board { width: 100%; max-width: 500px; aspect-ratio: 1/1; }
+        #board { width: 500px; max-width: 100%; min-width: 300px; aspect-ratio: 1/1; resize: horizontal; overflow: hidden; padding-right: 5px; padding-bottom: 5px; border: 1px solid transparent; }
         #coach-pane { width: 100%; padding: 20px; border: 1px solid #ddd; background: #fafafa; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; }
         #pgn-pane { width: 350px; padding: 20px; border: 1px solid #ddd; background: #fff; border-radius: 8px; overflow-y: auto; max-height: 500px; box-sizing: border-box; }
         .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #007bff; border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 8px; }
