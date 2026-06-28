@@ -10,6 +10,7 @@
         .top-row { display: flex; gap: 20px; }
         #board { width: 500px; max-width: 100%; min-width: 300px; aspect-ratio: 1/1; resize: horizontal; overflow: hidden; padding-right: 5px; padding-bottom: 5px; border: 1px solid transparent; }
         #coach-pane { width: 100%; padding: 20px; border: 1px solid #ddd; background: #fafafa; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; }
+        .marker-circle { fill: rgba(0, 200, 0, 0.6) !important; stroke: none !important; }
         #pgn-pane { width: 350px; padding: 20px; border: 1px solid #ddd; background: #fff; border-radius: 8px; overflow-y: auto; max-height: 500px; box-sizing: border-box; }
         .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #007bff; border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 8px; }
         textarea { width: 100%; height: 100px; margin-top: 5px; }
@@ -205,8 +206,8 @@
                                 if (meta.bestUciMove && meta.bestUciMove.length >= 4 && meta.bestUciMove !== '0000') {
                                     const fromSq = meta.bestUciMove.substring(0, 2);
                                     const toSq = meta.bestUciMove.substring(2, 4);
-                                    board.addMarker(fromSq, MARKER_TYPE.frame);
-                                    board.addMarker(toSq, MARKER_TYPE.frame);
+                                    board.addMarker(fromSq, MARKER_TYPE.circle);
+                                    board.addMarker(toSq, MARKER_TYPE.circle);
                                 }
                             } catch(e) {
                                 console.error("Error parsing metadata: ", e);
